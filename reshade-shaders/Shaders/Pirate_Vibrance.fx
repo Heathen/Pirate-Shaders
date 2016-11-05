@@ -22,7 +22,7 @@ float4 PS_Vibrance(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLO
 	return ret;
 }
 //===================================================================================================================
-technique Vibrance
+technique Pirate_Vibrance
 {
 	pass Vibrance
 	{

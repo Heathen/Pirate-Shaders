@@ -50,7 +50,7 @@ float4 PS_Lumasharpen(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : C
 	return ret;
 }
 //===================================================================================================================
-technique LumaSharpen
+technique Pirate_LumaSharpen
 {
 	pass LumaSharpen
 	{

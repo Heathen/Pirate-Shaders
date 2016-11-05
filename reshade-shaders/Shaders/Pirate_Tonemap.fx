@@ -34,7 +34,7 @@ float4 PS_Tonemap(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 	return float4(lerp(ret.rgb, tone, TONEMAP_STRENGTH), ret.w);
 }
 
-technique Tonemap
+technique Pirate_Tonemap
 {
 	pass Tonemap_Pass
 	{

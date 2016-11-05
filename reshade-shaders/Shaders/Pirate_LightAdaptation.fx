@@ -125,7 +125,7 @@ float4 PS_LightAdaptLF(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : 
 //===================================================================================================================
 //===================================================================================================================
 
-technique LightAdaptation
+technique Pirate_LightAdaptation
 {
 	pass LightAdaptationGather
 	{

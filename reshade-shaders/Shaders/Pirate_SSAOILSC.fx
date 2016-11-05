@@ -511,7 +511,7 @@ float4 PS_AOCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COL
 }
 
 //===================================================================================================================
-technique SSAO
+technique Pirate_SSAO
 {
 	pass DepthPre
 	{

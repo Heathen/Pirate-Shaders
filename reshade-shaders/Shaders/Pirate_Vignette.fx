@@ -42,7 +42,7 @@ float4 PS_Vignette(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLO
 	return saturate(ret);
 }
 //===================================================================================================================
-technique Vignette
+technique Pirate_Vignette
 {
 	pass Vignette
 	{

@@ -117,7 +117,7 @@ float4 PS_Combine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 	
 
 
-technique Bloom
+technique Pirate_Bloom
 {
 	pass BloomH
 	{
