@@ -117,8 +117,14 @@ uniform float DEPTH_AO_BLUR_RADIUS <
 	ui_label = "Blur - Radius";
 	ui_tooltip = "Radius of the blur.";
 	ui_type = "drag";
-	ui_min = 1.0; ui_max = 10.0;
-	> = 1.5;
+	ui_min = 0.0; ui_max = 10.0;
+	> = 0.5;
+uniform float DEPTH_AO_BLUR_NOISE <
+	ui_label = "Blur - Noise";
+	ui_tooltip = "Controls how much noise should remain after the blur.";
+	ui_type = "drag";
+	ui_min = 0.0; ui_max = 1.0;
+	> = 1.0;	
 // Quality and Debug stuff
 uniform int DEPTH_AO_DEBUG <
 	ui_label = "Debug - AO/IL/Scatter";
@@ -348,7 +354,7 @@ float4 GetAO(float2 coords)
 	occlusion /= passdiv;
 	#endif
 	
-	occlusion = saturate(occlusion * DEPTH_AO_STRENGTH);
+
 	//if (DEPTH_AO_CURVE_MODE == 0) // Linear
 		// Do Nothing
 	if (DEPTH_AO_CURVE_MODE == 1) // Squared
@@ -357,8 +363,8 @@ float4 GetAO(float2 coords)
 		occlusion = log10(occlusion * 10.0);
 	else if (DEPTH_AO_CURVE_MODE == 3) // Sine
 		occlusion = (sin(threepitwo + occlusion * pi) + 1) / 2;
+	occlusion = saturate(occlusion * DEPTH_AO_STRENGTH);
 
-	ilum = saturate(ilum * DEPTH_AO_IL_STRENGTH);
 	//if (DEPTH_AO_IL_CURVE_MODE == 0) // Linear
 		//Do Nothing
 	if (DEPTH_AO_IL_CURVE_MODE == 1) // Squared
@@ -369,8 +375,8 @@ float4 GetAO(float2 coords)
 		ilum = (sin(threepitwo + ilum * pi) + 1) / 2;
 	else if (DEPTH_AO_IL_CURVE_MODE == 4) // Mid range Sine
 		ilum = sin(ilum * pi);
+	ilum = saturate(ilum * DEPTH_AO_IL_STRENGTH);
 
-	scatter = saturate(scatter * DEPTH_AO_SCATTER_STRENGTH * 10.0);
 	//if (DEPTH_AO_IL_CURVE_MODE == 0) // Linear
 		//Do Nothing
 	if (DEPTH_AO_SCATTER_CURVE_MODE == 1) // Squared
@@ -381,6 +387,7 @@ float4 GetAO(float2 coords)
 		scatter = (sin(threepitwo + scatter * pi) + 1) / 2;
 	else if (DEPTH_AO_SCATTER_CURVE_MODE == 4) // Mid range Sine
 		scatter = sin(scatter * pi);
+	scatter = saturate(scatter * DEPTH_AO_SCATTER_STRENGTH * 10.0);
 
 	ilum += scatter;
 	return fade * float4(ilum, occlusion);
@@ -436,6 +443,7 @@ float4 PS_ColorLOD(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLO
 float4 PS_BlurX(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
 	float4 ret = tex2D(SamplerAOIL, texcoord);
+	float4 tap = ret;
 
 	for(int i=1; i <= DEPTH_AO_BLUR_TAPS; i++)
 	{
@@ -445,12 +453,15 @@ float4 PS_BlurX(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 	
 	ret /= DEPTH_AO_BLUR_TAPS * 2 + 1;
 
+	ret = lerp(ret, tap, tap * DEPTH_AO_BLUR_NOISE);
+	//ret = max(tap, ret);
 	return ret;
 }
 
 float4 PS_BlurY(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
 	float4 ret = tex2D(SamplerAOIL2, texcoord);
+	float4 tap = ret;
 
 	for(int i=1; i <= DEPTH_AO_BLUR_TAPS; i++)
 	{
@@ -459,7 +470,9 @@ float4 PS_BlurY(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 	}
 	
 	ret /= DEPTH_AO_BLUR_TAPS * 2 + 1;
-	
+
+	ret = lerp(ret, tap, tap * DEPTH_AO_BLUR_NOISE);
+	//ret = max(tap, ret);
 	return ret;
 }
 
@@ -531,6 +544,7 @@ technique Pirate_SSAO
 		PixelShader  = PS_GenAO;
 		RenderTarget = TexAOIL;
 	}
+	#if DEPTH_AO_USE_BLUR
 	pass BlurX
 	{
 		VertexShader = VS_PostProcess;
@@ -543,6 +557,7 @@ technique Pirate_SSAO
 		PixelShader  = PS_BlurY;
 		RenderTarget = TexAOIL;
 	}
+	#endif
 	pass AOFinal
 	{
 		VertexShader = VS_PostProcess;
