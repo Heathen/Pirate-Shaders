@@ -63,6 +63,12 @@ uniform float DEPTH_AO_MANUAL_FAR <
 	ui_type = "drag";
 	ui_min = 0.0; ui_max = 1000.0;
 	> = 500.0;
+uniform float DEPTH_AO_MANUAL_CURVE <
+	ui_label = "AO + IL - Manual Z Depth - Curve";
+	ui_tooltip = "Controls the curve between near and far.";
+	ui_type = "drag";
+	ui_min = 0.0; ui_max = 2.0;
+	> = 1.0;
 #define DEPTH_AO_CULLING		1.0	//[0.0 to 2.0] (For automatic culling only) 1.0 - No effect, lower this if it's occluding things that shouldn't be occluded
 // Global illumination specific things
 uniform float DEPTH_AO_IL_STRENGTH <
@@ -262,7 +268,7 @@ float4 GetAO(float2 coords)
 	// depth, so this is to guesstimate the radius of the distance culling hemisphere.
 	// Might even be useful on linear depth, who knows. Depends how you set it up.
 	const float averagepixel = (PixelSize.x + PixelSize.y) / 2;
-	float hemiradius = lerp(averagepixel * DEPTH_AO_MANUAL_NEAR, averagepixel * DEPTH_AO_MANUAL_FAR, pointnd.w);
+	float hemiradius = lerp(averagepixel * DEPTH_AO_MANUAL_NEAR, averagepixel * DEPTH_AO_MANUAL_FAR, pow(pointnd.w, DEPTH_AO_MANUAL_CURVE));
 	#else
 	const float hemiradius = ((PixelSize.x + PixelSize.y) / 2) * DEPTH_AO_RADIUS * DEPTH_AO_CULLING;
 	#endif
