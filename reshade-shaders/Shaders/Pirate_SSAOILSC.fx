@@ -358,8 +358,14 @@ float4 GetAO(float2 coords)
 		}
 	}
 	
+	#if DEPTH_AO_IL_ENABLE
 	ilum /= passdiv;
+	#else
+	ilum = 0.0;
+	#endif
+	#if DEPTH_AO_USE_SCATTER
 	scatter /= passdiv;
+	#endif
 	#if DEPTH_AO_USE_ALCHEMY
 	occlusion = (2 * DEPTH_AO_ALCHEMY_STRENGTH / passdiv) * occlusion;
 	#else
@@ -377,6 +383,7 @@ float4 GetAO(float2 coords)
 		occlusion = (sin(threepitwo + occlusion * pi) + 1) / 2;
 	occlusion = saturate(occlusion * DEPTH_AO_STRENGTH);
 
+	#if DEPTH_AO_IL_ENABLE
 	//if (DEPTH_AO_IL_CURVE_MODE == 0) // Linear
 		//Do Nothing
 	if (DEPTH_AO_IL_CURVE_MODE == 1) // Squared
@@ -388,7 +395,9 @@ float4 GetAO(float2 coords)
 	else if (DEPTH_AO_IL_CURVE_MODE == 4) // Mid range Sine
 		ilum = sin(ilum * pi);
 	ilum = saturate(ilum * DEPTH_AO_IL_STRENGTH);
+	#endif
 
+	#if DEPTH_AO_USE_SCATTER
 	//if (DEPTH_AO_IL_CURVE_MODE == 0) // Linear
 		//Do Nothing
 	if (DEPTH_AO_SCATTER_CURVE_MODE == 1) // Squared
@@ -400,6 +409,7 @@ float4 GetAO(float2 coords)
 	else if (DEPTH_AO_SCATTER_CURVE_MODE == 4) // Mid range Sine
 		scatter = sin(scatter * pi);
 	scatter = saturate(scatter * DEPTH_AO_SCATTER_STRENGTH * 10.0);
+	#endif
 
 	ilum += scatter;
 	return fade * float4(ilum, occlusion);
