@@ -26,36 +26,35 @@ uniform float DEPTH_AO_RADIUS <
 	ui_label = "AO+IL+SC - Radius";
 	ui_type = "drag";
 	ui_min = 0.0; ui_max = 200.0;
-	> = 100.0;
+	> = 50.0;
 
 uniform int DEPTH_AO_CURVE_MODE <
 	ui_label = "AO - Curve Mode";
 	ui_type = "combo";
 	ui_items = "Linear\0Squared\0Log\0Sine\0";
-	> = 3;
+	> = 1;
 uniform float DEPTH_AO_CULL_HALO <
 	ui_label = "AO - Cull Halo";
 	ui_tooltip = "Try to keep as close to 0.0 as possible, only lift this up if there are bright lines around objects that have occlusion behind them.";
 	ui_type = "drag";
 	ui_min = 0.0; ui_max = 0.5;
 	> = 0.0;
-
 uniform float DEPTH_AO_STRENGTH <
 	ui_label = "AO - Strength";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 10.0;
-	> = 0.5;
+	ui_min = 0.0; ui_max = 30.0;
+	> = 5.0;
 uniform int DEPTH_AO_BLEND_MODE <
 	ui_label = "AO - Blend Mode";
 	ui_type = "combo";
 	ui_items = "Subtract\0Multiply\0Color burn\0";
-	> = 2;		
+	> = 1;		
 // Distance culling and farplane specific settings
 uniform float DEPTH_AO_MANUAL_NEAR <
 	ui_label = "AO + IL - Manual Z Depth - Near";
 	ui_tooltip = "Increase this if nearby objects are casting black halos on far away objects.";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 10.0;
+	ui_min = 0.0; ui_max = 20.0;
 	> = 1.0;
 uniform float DEPTH_AO_MANUAL_FAR <
 	ui_label = "AO + IL - Manual Z Depth - Far";
@@ -74,18 +73,18 @@ uniform float DEPTH_AO_MANUAL_CURVE <
 uniform float DEPTH_AO_IL_STRENGTH <
 	ui_label = "IL - Strength";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 10.0;
-	> = 1.5;
+	ui_min = 0.0; ui_max = 30.0;
+	> = 4.0;
 uniform int DEPTH_AO_IL_CURVE_MODE <
 	ui_label = "IL - Curve Mode";
 	ui_type = "combo";
-	ui_items = "Linear\0Squared\0Log\0Sine\0Mir Range Sine\0";
+	ui_items = "Linear\0Squared\0Log\0Sine\0Mid Range Sine\0";
 	> = 4;
 uniform int DEPTH_AO_IL_BLEND_MODE <
 	ui_label = "IL + SC - Blend Mode";
 	ui_type = "combo";
 	ui_items = "Linear\0Screen\0Soft Light\0Color Dodge\0Hybrid\0";
-	> = 3;	
+	> = 2;	
 
 // Scatter light, needs IL
 uniform float DEPTH_AO_SCATTER_THRESHOLD <
@@ -97,12 +96,12 @@ uniform float DEPTH_AO_SCATTER_THRESHOLD <
 uniform float DEPTH_AO_SCATTER_STRENGTH <
 	ui_label = "Scatter - Strength";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 10.0;
-	> = 1.5;
+	ui_min = 0.0; ui_max = 30.0;
+	> = 3.5;
 uniform int DEPTH_AO_SCATTER_CURVE_MODE <
 	ui_label = "Scatter - Curve Mode";
 	ui_type = "combo";
-	ui_items = "Linear\0Squared\0Log\0Sine\0Mir Range Sine\0";
+	ui_items = "Linear\0Squared\0Log\0Sine\0Mid Range Sine\0";
 	> = 0;
 
 // Alchemy specific settings
@@ -123,14 +122,21 @@ uniform float DEPTH_AO_BLUR_RADIUS <
 	ui_label = "Blur - Radius";
 	ui_tooltip = "Radius of the blur.";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 10.0;
-	> = 0.5;
+	ui_min = 0.0; ui_max = 2.0;
+	> = 1.0;
 uniform float DEPTH_AO_BLUR_NOISE <
 	ui_label = "Blur - Noise";
 	ui_tooltip = "Controls how much noise should remain after the blur.";
 	ui_type = "drag";
 	ui_min = 0.0; ui_max = 1.0;
+	> = 0.0;	
+uniform float DEPTH_AO_BLUR_WEIGHT <
+	ui_label = "Blur - Directional Weight";
+	ui_tooltip = "When blur is set to weighted, it controls how much normals matter for the blur.";
+	ui_type = "drag";
+	ui_min = 0.0; ui_max = 1.0;
 	> = 1.0;	
+
 // Quality and Debug stuff
 uniform int DEPTH_AO_DEBUG <
 	ui_label = "Debug - AO/IL/Scatter";
@@ -274,7 +280,7 @@ float4 GetAO(float2 coords)
 	#endif
 	const float2 pixelradius = DEPTH_AO_RADIUS * PixelSize;
 	
-	int depth_passes = ceil(smoothstep(DEPTH_AO_FADE_END, 0.0, pointnd.w) * DEPTH_AO_PASSES) + 1;
+	int depth_passes = ceil(smoothstep(DEPTH_AO_FADE_END, 0.0, pointnd.w) * DEPTH_AO_PASSES) + DEPTH_AO_MIN_PASSES;
 	
 	#if DEPTH_AO_TAP_MODE
 	const float passdiv = 8 * float(depth_passes);
@@ -448,16 +454,46 @@ float4 PS_ColorLOD(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLO
 
 float4 PS_BlurX(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
+	#if (DEPTH_AO_BLUR_MODE == 1) // Weighted
+	float3 pointnd = tex2D(SamplerND, texcoord).xyz;
+	pointnd = normalize(pointnd * 2.0 - 1.0);
+	#elif (DEPTH_AO_BLUR_MODE == 2) // Directional
+	float3 pointnd = tex2D(SamplerND, texcoord).xyz;
+	pointnd = (pointnd * 2.0) - 1.0;
+	float2 c = normalize(pointnd.xy);
+	#endif
+
+	if (dot(pointnd, pointnd) == 0) pointnd = float3(0.0, 0.0, 1.0);
 	float4 ret = tex2D(SamplerAOIL, texcoord);
 	float4 tap = ret;
 
+	
+	float w;
+	
 	for(int i=1; i <= DEPTH_AO_BLUR_TAPS; i++)
 	{
-		ret += tex2D(SamplerAOIL, texcoord + float2(i * PixelSize.x * DEPTH_AO_BLUR_RADIUS, 0.0));
-		ret += tex2D(SamplerAOIL, texcoord - float2(i * PixelSize.x * DEPTH_AO_BLUR_RADIUS, 0.0));
+		#if (DEPTH_AO_BLUR_MODE == 1) // Weighted
+		float2 tapcoord = float2(i * PixelSize.x * DEPTH_AO_BLUR_RADIUS, 0.0);
+		w += abs(dot(pointnd, (tex2D(SamplerND, texcoord + tapcoord).xyz * 2.0 - 1.0)));
+		w += abs(dot(pointnd, (tex2D(SamplerND, texcoord - tapcoord).xyz * 2.0 - 1.0)));
+		ret += tex2D(SamplerAOIL, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL, texcoord - tapcoord);
+		#elif (DEPTH_AO_BLUR_MODE == 2) // Directional
+		float2 tapcoord = float2(i * c * PixelSize * DEPTH_AO_BLUR_RADIUS);
+		ret += tex2D(SamplerAOIL, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL, texcoord - tapcoord);
+		#else
+		float2 tapcoord = float2(i * PixelSize.x * DEPTH_AO_BLUR_RADIUS, 0.0);
+		ret += tex2D(SamplerAOIL, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL, texcoord - tapcoord);
+		#endif
 	}
 	
 	ret /= DEPTH_AO_BLUR_TAPS * 2 + 1;
+
+	w /= DEPTH_AO_BLUR_TAPS * 2 + 1;
+	w = lerp(1.0, w, DEPTH_AO_BLUR_WEIGHT);
+	ret = lerp(tap, ret, w);
 
 	ret = lerp(ret, tap, tap * DEPTH_AO_BLUR_NOISE);
 	//ret = max(tap, ret);
@@ -466,19 +502,47 @@ float4 PS_BlurX(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 
 float4 PS_BlurY(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
+	#if (DEPTH_AO_BLUR_MODE == 1) // Weighted
+	float3 pointnd = tex2D(SamplerND, texcoord).xyz;
+	pointnd = (pointnd * 2.0) - 1.0;
+	#elif (DEPTH_AO_BLUR_MODE == 2) // Directional
+	float3 pointnd = tex2D(SamplerND, texcoord).xyz;
+	pointnd = (pointnd * 2.0) - 1.0;
+	float2 c = Rotate90(normalize(pointnd.xy));
+	#endif
+	
 	float4 ret = tex2D(SamplerAOIL2, texcoord);
 	float4 tap = ret;
-
+	float w;
+	
 	for(int i=1; i <= DEPTH_AO_BLUR_TAPS; i++)
 	{
-		ret += tex2D(SamplerAOIL2, texcoord + float2(0.0, i * PixelSize.y * DEPTH_AO_BLUR_RADIUS));
-		ret += tex2D(SamplerAOIL2, texcoord - float2(0.0, i * PixelSize.y * DEPTH_AO_BLUR_RADIUS));
+		#if (DEPTH_AO_BLUR_MODE == 1) // Weighted
+		float2 tapcoord = float2(0.0, i * PixelSize.y * DEPTH_AO_BLUR_RADIUS);
+		w += abs(dot(pointnd, (tex2D(SamplerND, texcoord + tapcoord).xyz * 2.0 - 1.0)));
+		w += abs(dot(pointnd, (tex2D(SamplerND, texcoord - tapcoord).xyz * 2.0 - 1.0)));
+		ret += tex2D(SamplerAOIL2, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL2, texcoord - tapcoord);
+		#elif (DEPTH_AO_BLUR_MODE == 2) // Directional
+		float2 tapcoord = float2(i * c * PixelSize * DEPTH_AO_BLUR_RADIUS);
+		ret += tex2D(SamplerAOIL2, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL2, texcoord - tapcoord);
+		#else
+		float2 tapcoord = float2(0.0, i * PixelSize.y * DEPTH_AO_BLUR_RADIUS);
+		ret += tex2D(SamplerAOIL2, texcoord + tapcoord);
+		ret += tex2D(SamplerAOIL2, texcoord - tapcoord);
+		#endif
 	}
 	
 	ret /= DEPTH_AO_BLUR_TAPS * 2 + 1;
 
+	w /= DEPTH_AO_BLUR_TAPS * 2 + 1;
+	w = lerp(1.0, w, DEPTH_AO_BLUR_WEIGHT);
+	ret = lerp(tap, ret, w);
+	
 	ret = lerp(ret, tap, tap * DEPTH_AO_BLUR_NOISE);
 	//ret = max(tap, ret);
+	//return float4((pointnd + 1.0) / 2.0, 1.0);
 	return ret;
 }
 
