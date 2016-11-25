@@ -266,7 +266,8 @@ float4 GetAO(float2 coords)
 	float3 ilum;
 	float3 scatter;
 	float fade = smoothstep(DEPTH_AO_FADE_END - DEPTH_AO_FADE_START, 0.0, pointnd.w - DEPTH_AO_FADE_START);
-	//float zoomfactor = pow((1.0 - pointnd.w) * fade, 2); // Not being used right now. Could use later to compress taps that are far in the distance.
+	float zoomfactor = pow((1.0 - pointnd.w) * fade, 2); // Not being used right now. Could use later to compress taps that are far in the distance.
+	zoomfactor = max(zoomfactor, 0.5);
 	float3 tapeyevector;
 	
 	#if DEPTH_AO_USE_MANUAL_RADIUS
@@ -304,9 +305,9 @@ float4 GetAO(float2 coords)
 			randomvector = Rotate90(randomvector);
 		#endif
 			#if DEPTH_AO_USE_TIMED_NOISE
-			float2 tapcoords = coords + pixelradius * randomvector * (0.5 + GetRandomT(coords)) * (p + 1) / depth_passes;
+			float2 tapcoords = coords + pixelradius * randomvector * zoomfactor * (0.5 + GetRandomT(coords)) * (p + 1) / depth_passes;
 			#else
-			float2 tapcoords = coords + pixelradius * randomvector * (p + 1) / depth_passes;
+			float2 tapcoords = coords + pixelradius * randomvector * zoomfactor * (p + 1) / depth_passes;
 			#endif
 			
 			float4 tapnd = tex2Dlod(SamplerND, float4(tapcoords, 0, miplevel));
@@ -594,11 +595,11 @@ float4 PS_AOCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COL
 		ret.rgb = lerp(ret.rgb + il, ret.rgb * (1.0 + il), dot(ret.rgb, 0.3333));
 
 	if (DEPTH_AO_DEBUG == 1)
-		ret.rgb = ao * DEPTH_AO_STRENGTH;
+		ret.rgb = 0.75 + (ret.rgb * 0.25) - ao;
 	else if (DEPTH_AO_DEBUG == 2)
-		ret.rgb = il;
+		ret.rgb = ret.rgb * 0.25 + il;
 	else if (DEPTH_AO_DEBUG == 3)
-		ret.rgb = 0.3 + il - ao;
+		ret.rgb = ret.rgb * 0.3 + il - ao * 0.3;
 
 	return saturate(ret);
 }
