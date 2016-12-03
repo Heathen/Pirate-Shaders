@@ -3,7 +3,7 @@
 #define PixelSize  	float2(BUFFER_RCP_WIDTH, BUFFER_RCP_HEIGHT)
 
 uniform float Timer < source = "timer"; >;
-//uniform float Frametime < source = "frametime"; >;
+uniform float Frametime < source = "frametime"; >;
 
 texture2D 	texColor : COLOR;
 sampler2D 	SamplerColor {Texture = texColor; MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = LINEAR; AddressU = Clamp; AddressV = Clamp;};
