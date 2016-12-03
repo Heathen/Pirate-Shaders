@@ -199,7 +199,11 @@ float4 GetAO(float2 coords)
 	#endif
 	const float2 pixelradius = DEPTH_AO_RADIUS * PixelSize;
 	
+	#if DEPTH_AO_LOOP_FIX
+	int depth_passes = DEPTH_AO_PASSES + DEPTH_AO_MIN_PASSES;
+	#else
 	int depth_passes = ceil(smoothstep(DEPTH_AO_FADE_END, 0.0, pointnd.w) * DEPTH_AO_PASSES) + DEPTH_AO_MIN_PASSES;
+	#endif
 	
 	#if DEPTH_AO_TAP_MODE
 	const float passdiv = 8 * float(depth_passes);
@@ -208,7 +212,7 @@ float4 GetAO(float2 coords)
 	#endif
 	
 	float2 randomvector = GetRandomVector(coords);
-	
+
 	for(int p=0; p < depth_passes; p++)
 	{
 		int miplevel = floor(smoothstep(0.0, depth_passes, p) * DEPTH_AO_MIPLEVELS);
