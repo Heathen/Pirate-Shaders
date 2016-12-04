@@ -166,7 +166,9 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 	
 	float bluramount = tex2D(SamplerFocus, texcoord).r;
 	if (bluramount == 0) return origcolor;
+	#if (DOF_USE_MANUAL_FOCUS == 0)
 	v = Rotate(v, tex2D(SamplerFocalPoint, 0.5).x * 2.0);
+	#endif
 	res.w *= bluramount;
 	float4 bokeh = res;
 	res.rgb *= res.w;
@@ -225,6 +227,7 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 	return res;
 }
 //===================================================================================================================
+#if (DOF_USE_MANUAL_FOCUS == 0)
 float PS_GetFocus (float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
 	float lastfocus = tex2D(SamplerFCopy, 0.5).x;
@@ -250,7 +253,7 @@ float PS_CopyFocus (float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COL
 {
 	return tex2D(SamplerFocalPoint, 0.5).x;
 }
-
+#endif
 float PS_GenFocus (float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
 	return GetFocus(tex2D(SamplerND, texcoord).w);
@@ -287,6 +290,7 @@ float4 PS_DOFCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : CO
 //===================================================================================================================
 technique Pirate_DOF
 {
+	#if (DOF_USE_MANUAL_FOCUS == 0)
 	pass GetFocus
 	{
 		VertexShader = VS_PostProcess;
@@ -299,6 +303,7 @@ technique Pirate_DOF
 		PixelShader  = PS_CopyFocus;
 		RenderTarget = TexF2;
 	}
+	#endif
 	pass FocalRange
 	{
 		VertexShader = VS_PostProcess;
