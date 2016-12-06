@@ -24,6 +24,12 @@ uniform float LIGHTADAPT_EXPOSURE <
 	ui_type = "drag";
 	ui_min = 0.0; ui_max = 1.0;
 	> = 0.1;
+uniform float LIGHTADAPT_SPREAD <
+	ui_label = "Light Adaptation - Detector Spread";
+	ui_tooltip = "If you're getting a consistent min or max light values, the detection might be hitting an UI pixel, lower this value slightly until the debug view starts moving normally.";
+	ui_type = "drag";
+	ui_min = 0.0; ui_max = 1.0;
+	> = 1.0;
 uniform bool LIGHTADAPT_DEBUG <
 	ui_label = "Light Adaptation - Debug";
 	ui_tooltip = "Shows debug bars. Top bar is the original curve, bottom is adapted curve. Red values are bellow average, green above average.";
@@ -42,19 +48,19 @@ float4 PS_LightAdaptGather(float4 vpos : SV_Position, float2 texcoord : TEXCOORD
 {
 	const float2 taps[13]=
 	{
-		float2(0.5, 0.5),
-		float2(0.1, 0.1),
-		float2(0.1, 0.9),
-		float2(0.9, 0.1),
-		float2(0.9, 0.9),
-		float2(0.1, 0.5),
-		float2(0.9, 0.5),
-		float2(0.5, 0.1),
-		float2(0.5, 0.9),
-		float2(0.75, 0.75),
-		float2(0.25, 0.75),
-		float2(0.75, 0.25),
-		float2(0.25, 0.25)
+		float2(0.0, 0.0),
+		float2(-0.4, -0.4),
+		float2(-0.4, 0.4),
+		float2(0.4, -0.4),
+		float2(0.4, 0.4),
+		float2(-0.4, 0.0),
+		float2(0.4, 0.0),
+		float2(0.0, -0.4),
+		float2(0.0, 0.4),
+		float2(0.25, 0.25),
+		float2(-0.25, 0.25),
+		float2(0.25, -0.25),
+		float2(-0.25,- 0.25)
 	};
 	
 	float maxlight, minlight, averagelight;
@@ -62,7 +68,7 @@ float4 PS_LightAdaptGather(float4 vpos : SV_Position, float2 texcoord : TEXCOORD
 	
 	for(int i=0; i < 13; i++)
 	{
-		float tap = LumaChroma(tex2D(SamplerColor, taps[i])).w;
+		float tap = LumaChroma(tex2D(SamplerColor, 0.5 + taps[i] * LIGHTADAPT_SPREAD)).w;
 		maxlight = max(maxlight, tap);
 		minlight = min(minlight, tap);
 		averagelight += tap;
