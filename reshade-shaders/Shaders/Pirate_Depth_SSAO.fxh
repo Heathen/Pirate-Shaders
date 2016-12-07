@@ -15,7 +15,7 @@ uniform float DEPTH_AO_CULL_HALO <
 	ui_label = "AO - Cull Halo";
 	ui_tooltip = "Try to keep as close to 0.0 as possible, only lift this up if there are bright lines around objects that have occlusion behind them.";
 	ui_type = "drag";
-	ui_min = 0.0; ui_max = 0.5;
+	ui_min = 0.0; ui_max = 1.0;
 	> = 0.0;
 uniform float DEPTH_AO_STRENGTH <
 	ui_label = "AO - Strength";
@@ -175,8 +175,8 @@ float4 GetAO(float2 coords)
 	float4 pointnd = tex2D(SamplerND, coords);
 	[branch] if (pointnd.w > DEPTH_AO_FADE_END) discard; // Bye bye pixels
 	pointnd.xyz = (pointnd.xyz * 2.0) - 1.0;
-	pointnd.z = min(pointnd.z, 0.0) - DEPTH_AO_CULL_HALO;
-	pointnd.xyz = normalize(pointnd.xyz);
+	//pointnd.z = min(pointnd.z, 0.0) - DEPTH_AO_CULL_HALO;
+	//pointnd.xyz = normalize(pointnd.xyz);
 	float3 pointeyevector = float3((coords * 2.0 - 1.0) * pointnd.w, pointnd.w);
 	
 	float occlusion;
@@ -484,7 +484,8 @@ float4 PS_AOCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COL
 		return ret;
 	}
 
-	float4 aoil = tex2D(SamplerAOIL, texcoord);
+	//float4 aoil = tex2D(SamplerAOIL, texcoord);
+	float4 aoil = max(0.0, tex2D(SamplerAOIL, texcoord) - saturate(tex2D(SamplerND, texcoord).z * 2 - 1) * DEPTH_AO_CULL_HALO);
 
 	float ao = aoil.w;
 
@@ -518,6 +519,7 @@ float4 PS_AOCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COL
 	else if (DEPTH_AO_DEBUG == 3)
 		ret.rgb = 0.5 + ret.rgb * DEPTH_AO_DEBUG_IMAGE + il - ao * 0.3;
 
+	//ret.rgb = saturate(tex2D(SamplerND, texcoord).z * 2 - 1);
 	return saturate(ret);
 }
 

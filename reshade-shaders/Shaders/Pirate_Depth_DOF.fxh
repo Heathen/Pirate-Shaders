@@ -186,9 +186,7 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 
 		float4 tap = tex2Dlod(samp, float4(tapcoord, 0, 0));
 		
-		float luma = LumaChroma(tap).w;
-		
-		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * luma;
+		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * LumaChroma(tap).w;
 
 		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
 
@@ -200,9 +198,7 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 
 		tap = tex2Dlod(samp, float4(tapcoord, 0, 0));
 		
-		luma = LumaChroma(tap).w;
-		
-		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * luma;
+		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * LumaChroma(tap).w;
 		
 		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
 
