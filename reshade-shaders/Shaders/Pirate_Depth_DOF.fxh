@@ -105,8 +105,13 @@ texture2D	TexF2 {Width = 1; Height = 1; Format = R16F;};
 sampler2D	SamplerFCopy {Texture = TexF2; MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = LINEAR; AddressU = Clamp; AddressV = Clamp;};
 #endif
 
+#if DOF_PHOTOREALISTIC_NEAR
+texture2D	TexFocus {Width = BUFFER_WIDTH * DOF_TEXTURE_QUALITY; Height = BUFFER_HEIGHT * DOF_TEXTURE_QUALITY; Format = R16F;};
+sampler2D	SamplerFocus {Texture = TexFocus; MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = LINEAR; AddressU = Clamp; AddressV = Clamp;};
+#else
 texture2D	TexFocus {Width = BUFFER_WIDTH * DOF_TEXTURE_QUALITY; Height = BUFFER_HEIGHT * DOF_TEXTURE_QUALITY; Format = R8;};
 sampler2D	SamplerFocus {Texture = TexFocus; MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = LINEAR; AddressU = Clamp; AddressV = Clamp;};
+#endif
 
 texture2D	TexDOF1 {Width = BUFFER_WIDTH * DOF_TEXTURE_QUALITY; Height = BUFFER_HEIGHT * DOF_TEXTURE_QUALITY; Format = RGBA8;};
 sampler2D	SamplerDOF1 {Texture = TexDOF1; MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = LINEAR; AddressU = Clamp; AddressV = Clamp;};
@@ -155,6 +160,9 @@ float GetFocus(float d) {
 	}
 	
 	res = pow(smoothstep(DOF_FOCAL_RANGE, 1.0, res), DOF_FOCAL_CURVE);
+	#if DOF_PHOTOREALISTIC_NEAR
+	res *= 1 - (d < focus) * 2;
+	#endif
 	
 	return res;
 }
@@ -164,19 +172,38 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 	float4 res = origcolor;
 	res.w = LumaChroma(origcolor).w;
 	
+	#if DOF_PHOTOREALISTIC_NEAR
+	float bluramount = abs(tex2D(SamplerFocus, texcoord).r);
+	#else
 	float bluramount = tex2D(SamplerFocus, texcoord).r;
 	if (bluramount == 0) return origcolor;
+	res.w *= bluramount;
+	#endif
 	#if (DOF_USE_MANUAL_FOCUS == 0)
 	v = Rotate(v, tex2D(SamplerFocalPoint, 0.5).x * 2.0);
 	#endif
-	res.w *= bluramount;
 	float4 bokeh = res;
 	res.rgb *= res.w;
 	
+	#if DOF_PHOTOREALISTIC_NEAR
+	float2 calcv = v * DOF_RADIUS * PixelSize / DOF_TEXTURE_QUALITY;
+	float depths[DOF_TAPS * 2];
+	[unroll] for(int ii=0; ii < DOF_TAPS; ii++)
+	{
+		float2 tapcoord = texcoord + calcv * (ii + 1);
+		depths[ii * 2] = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r;
+		bluramount = (depths[ii * 2] < 0) ? max(bluramount, -depths[ii * 2]) : bluramount;
+		tapcoord = texcoord - calcv * (ii + 1);
+		depths[ii * 2 + 1] = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r;
+		bluramount = (depths[ii * 2 + 1] < 0) ? max(bluramount, -depths[ii * 2 + 1]) : bluramount;
+	}
+	float discradius = bluramount * DOF_RADIUS;
+	calcv = v * discradius * PixelSize / DOF_TEXTURE_QUALITY;
+	#else
 	float discradius = bluramount * DOF_RADIUS;
 	if (discradius < PixelSize.x / DOF_TEXTURE_QUALITY) return origcolor;
-	
 	float2 calcv = v * discradius * PixelSize / DOF_TEXTURE_QUALITY;
+	#endif
 	
 	for(int i=1; i <= DOF_TAPS; i++)
 	{
@@ -186,9 +213,15 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 
 		float4 tap = tex2Dlod(samp, float4(tapcoord, 0, 0));
 		
+		#if DOF_PHOTOREALISTIC_NEAR
+		tap.w = abs(depths[(i - 1) * 2]);
+		tap.w *= LumaChroma(tap).w;
+		#else
 		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * LumaChroma(tap).w;
+		#endif
 
-		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
+		//bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
+		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w) * tap.w);
 
 		res.rgb += tap.rgb * tap.w;
 		res.w += tap.w;
@@ -198,9 +231,15 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 
 		tap = tex2Dlod(samp, float4(tapcoord, 0, 0));
 		
+		#if DOF_PHOTOREALISTIC_NEAR
+		tap.w = abs(depths[(i - 1) * 2 + 1]);
+		tap.w *= LumaChroma(tap).w;
+		#else
 		tap.w = tex2Dlod(SamplerFocus, float4(tapcoord, 0, 0)).r * LumaChroma(tap).w;
+		#endif
 		
-		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
+		//bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
+		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w) * tap.w);
 
 		res.rgb += tap.rgb * tap.w;
 		res.w += tap.w;
@@ -208,7 +247,11 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 	}
 	
 	res.rgb /= res.w;
+	#if DOF_PHOTOREALISTIC_NEAR
+	res.rgb = (discradius == 0) ? res.rgb : lerp(res.rgb, bokeh.rgb, saturate(bokeh.w * DOF_BOKEH_BIAS));
+	#else
 	res.rgb = lerp(res.rgb, bokeh.rgb, saturate(bokeh.w * DOF_BOKEH_BIAS));
+	#endif
 	res.w = 1.0;
 	float4 lc = LumaChroma(res);
 	lc.w = pow(lc.w, 1.0 + DOF_BOKEH_CONTRAST / 10.0);
@@ -262,6 +305,13 @@ float4 PS_DOF3(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 }
 float4 PS_DOFCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : COLOR
 {
+	#if DOF_PHOTOREALISTIC_NEAR
+	float4 res = tex2D(SamplerDOF1, texcoord);
+	float bluramount = abs(tex2D(SamplerFocus, texcoord).r);
+	res.rgb = lerp(res.rgb, BlendColorDodge(res.rgb, tex2D(SamplerLensScratches, texcoord).rgb), bluramount * LumaChroma(res).w * DOF_SCRATCHES_STRENGTH);
+	if (DOF_DEBUG) res.rgb = abs(tex2D(SamplerFocus, texcoord).r);
+	return res;
+	#else
 	float bluramount = tex2D(SamplerFocus, texcoord).r;
 	float4 orig = tex2D(SamplerColor, texcoord);
 	
@@ -276,6 +326,7 @@ float4 PS_DOFCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : CO
 	}
 	if (DOF_DEBUG) res = tex2D(SamplerFocus, texcoord);
 	return res;
+	#endif
 }
 //===================================================================================================================
 technique Pirate_DOF
