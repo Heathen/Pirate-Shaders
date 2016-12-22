@@ -222,7 +222,7 @@ float4 GenDOF(float2 texcoord, float2 v, sampler2D samp)
 
 		//bokeh = lerp(bokeh, tap, (tap.w > bokeh.w));
 		bokeh = lerp(bokeh, tap, (tap.w > bokeh.w) * tap.w);
-
+		
 		res.rgb += tap.rgb * tap.w;
 		res.w += tap.w;
 		
