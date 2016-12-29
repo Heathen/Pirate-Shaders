@@ -1,4 +1,11 @@
 //===================================================================================================================
+#if DEPTH_USE_RESHADE_SETTINGS
+#undef PixelSize
+#include "ReShade.fxh"
+#define PixelSize  	float2(BUFFER_RCP_WIDTH, BUFFER_RCP_HEIGHT)
+#endif
+//===================================================================================================================
+#if (DEPTH_USE_RESHADE_SETTINGS == 0)
 uniform bool DEPTH_INVERT <
 	ui_label = "Depth - Invert";
 	> = false;
@@ -13,6 +20,7 @@ uniform float DEPTH_FARPLANE <
 	ui_label = "Depth - Farplane";
 	ui_tooltip = "Controls the depth curve. 1.0 is the same as turning farplane off. Some games like GTAV use numbers under 1.0.";
 	> = 200.0;
+#endif
 uniform bool DEPTH_DEBUG <
 	ui_label = "Depth - Debug";
 	ui_tooltip = "Shows depth, you want close objects to be black and far objects to be white for things to work properly.";
@@ -35,14 +43,19 @@ sampler2D	SamplerND {Texture = TexNormalDepth; MinFilter = LINEAR; MagFilter = L
 //===================================================================================================================
 #define pi 3.14159265359f
 #define threepitwo 4.71238898038f
+#define depthlog depth / 2.3
 
 float GetDepth(float2 coords)
 {
+	#if DEPTH_USE_RESHADE_SETTINGS
+	return saturate(ReShade::GetLinearizedDepth(coords));
+	#else
 	if (DEPTH_INVERT_Y) coords.y = 1.0 - coords.y;
 	float depth = tex2D(SamplerDepth, coords.xy).x;
 	if (DEPTH_USE_FARPLANE)	depth /= DEPTH_FARPLANE - depth * DEPTH_FARPLANE + depth;
 	if (DEPTH_INVERT) depth = 1.0 - depth;
 	return saturate(depth);
+	#endif
 }
 
 float3 EyeVector(float3 vec)

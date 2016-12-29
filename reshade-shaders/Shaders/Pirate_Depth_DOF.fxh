@@ -308,7 +308,9 @@ float4 PS_DOFCombine(float4 vpos : SV_Position, float2 texcoord : TEXCOORD) : CO
 	#if DOF_P_WORD_NEAR
 	float4 res = tex2D(SamplerDOF1, texcoord);
 	float bluramount = abs(tex2D(SamplerFocus, texcoord).r);
+	#if DOF_USE_LENS_SCRATCH
 	res.rgb = lerp(res.rgb, BlendColorDodge(res.rgb, tex2D(SamplerLensScratches, texcoord).rgb), bluramount * LumaChroma(res).w * DOF_SCRATCHES_STRENGTH);
+	#endif
 	if (DOF_DEBUG) res.rgb = abs(tex2D(SamplerFocus, texcoord).r);
 	return res;
 	#else
